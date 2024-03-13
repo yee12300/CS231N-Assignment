@@ -34,7 +34,19 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    for i in range(X.shape[0]):
+        unnorm_log_prob = np.dot(X[i], W)
+        unnorm_prob = np.exp(unnorm_log_prob)
+        norm_prob = unnorm_prob / np.sum(unnorm_prob)
+        loss += -np.log(norm_prob[y[i]])
+        for j in range(W.shape[1]):
+            dW[:, j] += X[i] * norm_prob[j]
+        dW[:, y[i]] -= X[i]
+
+    loss /= X.shape[0]
+    loss += reg * np.sum(W * W)
+    dW /= X.shape[0]
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -59,7 +71,18 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    unnorm_log_prob = np.matmul(X, W)
+    unnorm_prob = np.exp(unnorm_log_prob)
+    norm_prob = unnorm_prob / np.sum(unnorm_prob, axis=1, keepdims=True)
+    loss = -np.sum(np.log(norm_prob[range(X.shape[0]), y])) / X.shape[0]
+    loss += reg * np.sum(W * W)
+
+    dW = np.matmul(X.T, norm_prob)
+    mask = np.zeros_like(norm_prob)
+    mask[range(X.shape[0]), y] = 1
+    dW -= np.matmul(X.T, mask)
+    dW /= X.shape[0]
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
