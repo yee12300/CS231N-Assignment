@@ -69,7 +69,8 @@ def sgd_momentum(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    v = config["momentum"] * v + dw
+    next_w = w - config["learning_rate"] * v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -100,6 +101,7 @@ def rmsprop(w, dw, config=None):
     config.setdefault("cache", np.zeros_like(w))
 
     next_w = None
+    grad_squared = 0
     ###########################################################################
     # TODO: Implement the RMSprop update formula, storing the next value of w #
     # in the next_w variable. Don't forget to update cache value stored in    #
@@ -107,7 +109,8 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    grad_squared = config["decay_rate"] * grad_squared + (1 - config["decay_rate"]) * dw ** 2
+    next_w = w - config["learning_rate"] * dw / (np.sqrt(grad_squared) + config["epsilon"])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -142,6 +145,8 @@ def adam(w, dw, config=None):
     config.setdefault("t", 0)
 
     next_w = None
+    first_moment = 0
+    second_moment = 0
     ###########################################################################
     # TODO: Implement the Adam update formula, storing the next value of w in #
     # the next_w variable. Don't forget to update the m, v, and t variables   #
@@ -152,7 +157,12 @@ def adam(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    first_moment = config["beta1"] * first_moment + (1 - config["beta1"]) * dw
+    second_moment = config["beta2"] * second_moment + (1 - config["beta2"]) * dw ** 2
+    config["t"] += 1
+    first_unbias = first_moment / (1 - config["beta1"] ** config["t"])
+    second_unbias = second_moment / (1 - config["beta2"] ** config["t"])
+    next_w = w - config["learning_rate"] * first_unbias / (np.sqrt(second_unbias) + config["epsilon"])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
