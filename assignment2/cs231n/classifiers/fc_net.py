@@ -74,7 +74,16 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        for i in range(len(hidden_dims)):
+            self.params['W' + str(i + 1)] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[i]))
+            self.params['b' + str(i + 1)] = np.zeros(hidden_dims[i])
+            if self.normalization in ['batchnorm', 'layernorm'] and i < self.num_layers - 1:
+                self.params['gamma' + str(i + 1)] = np.ones(hidden_dims[i])
+                self.params['beta' + str(i + 1)] = np.zeros(hidden_dims[i])
+            input_dim = hidden_dims[i]
+
+        self.params['W' + str(self.num_layers)] = np.random.normal(0, weight_scale, (input_dim, num_classes))
+        self.params['b' + str(self.num_layers)] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -148,7 +157,18 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        scores = X
+        caches = {}
+        for i in range(self.num_layers - 1):
+            scores, caches['affine' + str(i + 1)] = affine_forward(scores, self.params['W' + str(i + 1)], self.params['b' + str(i + 1)])
+            scores, caches['relu' + str(i + 1)] = relu_forward(scores)
+            if self.normalization == 'batchnorm':
+                scores, caches['batchnorm'] = batchnorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
+            elif self.normalization == 'layernorm':
+                scores, caches['layernorm'] = layernorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
+            if self.use_dropout:
+                scores, caches['dropout' + str(i + 1)] = dropout_forward(scores, self.dropout_param)
+        scores, caches['affine' + str(self.num_layers)] = affine_forward(scores, self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -175,7 +195,29 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        for i in range(self.num_layers, 0, -1):
+            if i == self.num_layers:
+                loss, dscores = softmax_loss(scores, y)
+                loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)] ** 2)
+                dscores, dW, db = affine_backward(dscores, caches['affine' + str(i)])
+                grads['W' + str(i)] = dW + self.reg * self.params['W' + str(i)]
+                grads['b' + str(i)] = db
+            else:
+                if self.use_dropout:
+                    dscores = dropout_backward(dscores, caches['dropout' + str(i)])
+                if self.normalization == 'batchnorm':
+                    dscores, dgamma, dbeta = batchnorm_backward(dscores, caches['batchnorm'])
+                    grads['gamma' + str(i)] = dgamma
+                    grads['beta' + str(i)] = dbeta
+                elif self.normalization == 'layernorm':
+                    dscores, dgamma, dbeta = layernorm_backward(dscores, caches['layernorm'])
+                    grads['gamma' + str(i)] = dgamma
+                    grads['beta' + str(i)] = dbeta
+                dscores = relu_backward(dscores, caches['relu' + str(i)])
+                dscores, dW, db = affine_backward(dscores, caches['affine' + str(i)])
+                loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)] ** 2)
+                grads['W' + str(i)] = dW + self.reg * self.params['W' + str(i)]
+                grads['b' + str(i)] = db
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
