@@ -74,16 +74,17 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        for i in range(len(hidden_dims)):
-            self.params['W' + str(i + 1)] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[i]))
-            self.params['b' + str(i + 1)] = np.zeros(hidden_dims[i])
-            if self.normalization in ['batchnorm', 'layernorm'] and i < self.num_layers - 1:
-                self.params['gamma' + str(i + 1)] = np.ones(hidden_dims[i])
-                self.params['beta' + str(i + 1)] = np.zeros(hidden_dims[i])
-            input_dim = hidden_dims[i]
+        if hidden_dims:
+            layer_dims = [input_dim] + hidden_dims + [num_classes]
+        else:
+            layer_dims = [input_dim, num_classes]
+        for i in range(self.num_layers):
+            self.params['W' + str(i + 1)] = np.random.normal(0, weight_scale, (layer_dims[i], layer_dims[i + 1]))
+            self.params['b' + str(i + 1)] = np.zeros(layer_dims[i + 1])
+            if (normalization == 'batchnorm' or normalization == 'layernorm') and i < self.num_layers - 1:
+                self.params['gamma' + str(i + 1)] = np.ones(layer_dims[i + 1])
+                self.params['beta' + str(i + 1)] = np.zeros(layer_dims[i + 1])
 
-        self.params['W' + str(self.num_layers)] = np.random.normal(0, weight_scale, (input_dim, num_classes))
-        self.params['b' + str(self.num_layers)] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -106,7 +107,7 @@ class FullyConnectedNet(object):
         # pass of the second batch normalization layer, etc.
         self.bn_params = []
         if self.normalization == "batchnorm":
-            self.bn_params = [{"mode": "train"} for i in range(self.num_layers - 1)]
+            self.bn_params = [{"mode": "train"} for _ in range(self.num_layers - 1)]
         if self.normalization == "layernorm":
             self.bn_params = [{} for i in range(self.num_layers - 1)]
 
@@ -163,9 +164,9 @@ class FullyConnectedNet(object):
             scores, caches['affine' + str(i + 1)] = affine_forward(scores, self.params['W' + str(i + 1)], self.params['b' + str(i + 1)])
             scores, caches['relu' + str(i + 1)] = relu_forward(scores)
             if self.normalization == 'batchnorm':
-                scores, caches['batchnorm'] = batchnorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
+                scores, caches['batchnorm' + str(i + 1)] = batchnorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
             elif self.normalization == 'layernorm':
-                scores, caches['layernorm'] = layernorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
+                scores, caches['layernorm' + str(i + 1)] = layernorm_forward(scores, self.params['gamma' + str(i + 1)], self.params['beta' + str(i + 1)], self.bn_params[i])
             if self.use_dropout:
                 scores, caches['dropout' + str(i + 1)] = dropout_forward(scores, self.dropout_param)
         scores, caches['affine' + str(self.num_layers)] = affine_forward(scores, self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
@@ -206,11 +207,11 @@ class FullyConnectedNet(object):
                 if self.use_dropout:
                     dscores = dropout_backward(dscores, caches['dropout' + str(i)])
                 if self.normalization == 'batchnorm':
-                    dscores, dgamma, dbeta = batchnorm_backward(dscores, caches['batchnorm'])
+                    dscores, dgamma, dbeta = batchnorm_backward(dscores, caches['batchnorm' + str(i)])
                     grads['gamma' + str(i)] = dgamma
                     grads['beta' + str(i)] = dbeta
                 elif self.normalization == 'layernorm':
-                    dscores, dgamma, dbeta = layernorm_backward(dscores, caches['layernorm'])
+                    dscores, dgamma, dbeta = layernorm_backward(dscores, caches['layernorm' + str(i)])
                     grads['gamma' + str(i)] = dgamma
                     grads['beta' + str(i)] = dbeta
                 dscores = relu_backward(dscores, caches['relu' + str(i)])
