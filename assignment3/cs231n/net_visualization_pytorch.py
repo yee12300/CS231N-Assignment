@@ -34,7 +34,13 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = model(X)
+    correct_scores = scores.gather(1, y.view(-1, 1)).squeeze()
+
+    model.zero_grad()
+    correct_scores.backward(torch.ones_like(correct_scores))
+
+    saliency = X.grad.abs().max(dim=1).values
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -76,7 +82,22 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = model(X_fooling)
+    softmax_scores = torch.nn.functional.softmax(scores, dim=1)
+    softmax_target_scores = softmax_scores[0, target_y]
+
+    iteration = 0
+    while softmax_target_scores < 0.5:
+        scores = model(X_fooling)
+        softmax_scores = torch.nn.functional.softmax(scores, dim=1)
+        softmax_target_scores = softmax_scores[0, target_y]
+
+        model.zero_grad()
+        softmax_target_scores.backward()
+        X_fooling.data += learning_rate * X_fooling.grad / X_fooling.grad.norm()
+        iteration += 1
+
+    print(f"Number of iterations: {iteration}")
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -94,7 +115,13 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = model(img)
+    target_score = scores[0, target_y]
+    model.zero_grad()
+    target_score.backward()
+    gradient = img.grad
+    img.data += learning_rate * (gradient - 2 * l2_reg * img) / gradient.norm()
+    img.grad.zero_()
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
