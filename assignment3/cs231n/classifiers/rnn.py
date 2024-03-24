@@ -148,7 +148,35 @@ class CaptioningRNN:
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h0, cache_h0 = affine_forward(features, W_proj, b_proj)
+        word_embedded, cache_word_embed = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+            h, cache_h = rnn_forward(word_embedded, h0, Wx, Wh, b)
+        elif self.cell_type == 'lstm':
+            h, cache_h = lstm_forward(word_embedded, h0, Wx, Wh, b)
+        else:
+            raise ValueError('Invalid cell_type "%s"' % self.cell_type)
+        scores, cache_scores = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dscores = temporal_softmax_loss(scores, captions_out, mask)
+
+        dh, dW_vocab, db_vocab = temporal_affine_backward(dscores, cache_scores)
+        if self.cell_type == 'rnn':
+            dword_embedded, dh0, dWx, dWh, db = rnn_backward(dh, cache_h)
+        elif self.cell_type == 'lstm':
+            dword_embedded, dh0, dWx, dWh, db = lstm_backward(dh, cache_h)
+        else:
+            raise ValueError('Invalid cell_type "%s"' % self.cell_type)
+        dW_embed = word_embedding_backward(dword_embedded, cache_word_embed)
+        dfeatures, dW_proj, db_proj = affine_backward(dh0, cache_h0)
+
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
+        grads['W_embed'] = dW_embed
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+        grads['W_vocab'] = dW_vocab
+        grads['b_vocab'] = db_vocab
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -216,7 +244,25 @@ class CaptioningRNN:
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        prev_h = np.dot(features, W_proj) + b_proj
+        prev_word = np.full((N,), self._start, dtype=np.int32)
+
+        prev_c = np.zeros_like(prev_h) if self.cell_type == 'lstm' else None
+
+        for t in range(max_length):
+            word_embed, _ = word_embedding_forward(prev_word, W_embed)
+            if self.cell_type == 'rnn':
+                next_h, _ = rnn_step_forward(word_embed, prev_h, Wx, Wh, b)
+            elif self.cell_type == 'lstm':
+                next_h, next_c, _ = lstm_step_forward(word_embed, prev_h, prev_c, Wx, Wh, b)
+
+            scores = np.dot(next_h, W_vocab) + b_vocab
+            captions[:, t] = np.argmax(scores, axis=1)
+            prev_h = next_h
+            prev_word = captions[:, t]
+
+            if self.cell_type == 'lstm':
+                prev_c = next_c
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
